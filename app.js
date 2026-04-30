@@ -154,3 +154,43 @@ async function saveTemplate(obj) {
     .from('template')
     .upsert([{ data: obj }]);
   setSyncStatus(!error);
+  // === Fin BLOC MIGRATION TEMPLATE SUPABASE ===
+// === DÉBUT BLOC UTILITAIRES SUPABASE ===
+function calculStats(planning, objectifs) {
+  let total = 0;
+  planning.forEach(item => {
+    if (item.activity && item.activity !== "Occupation") total++;
+  });
+  const objectifGlobal = objectifs?.global || 0;
+  return {
+    total,
+    objectif: objectifGlobal,
+    progression: objectifGlobal ? Math.round((total / objectifGlobal) * 100) : 0
+  };
+}
+
+function exportJSON(data, filename) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], {
+    type: "application/json"
+  });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function importJSON(file, callback) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      callback(data);
+    } catch {
+      alert("Erreur lors de l'import JSON");
+    }
+  };
+  reader.readAsText(file);
+}
+// === FIN BLOC UTILITAIRES SUPABASE ===
+``

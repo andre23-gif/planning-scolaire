@@ -1,1 +1,34 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <title>Planning scolaire Supabase</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Planning scolaire</h1>
+    <span id="sync-dot"></span>
+  </header>
+
+  <main>
+    <div id="auth-form" style="display:none;">
+      <input id="auth-email" placeholder="email">
+      <input id="auth-password" type="password" placeholder="mot de passe">
+      <button id="btn-login" type="button">Connexion</button>
+      <button id="btn-signup" type="button">Inscription</button>
+    </div>
+    <div id="user-bar" style="display:none;">
+      <span id="user-email"></span>
+      <button id="btn-logout" class="btn" type="button">Déconnexion</button>
+    </div>
+    <div id="planning"></div>
+  </main>
+
+  <footer>
+    <span>© 2026</span>
+  </footer>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
 

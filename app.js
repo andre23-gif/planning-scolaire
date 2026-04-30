@@ -1079,7 +1079,7 @@ function wireEvents(){
 /* ======================================================
    INIT
 ====================================================== */
-document.addEventListener("DOMContentLoaded", async ()=>{
+async function startApp() {
   wireEvents();
   buildWeekSelect();
   fillPrefillSourceWeeks();
@@ -1089,4 +1089,10 @@ document.addEventListener("DOMContentLoaded", async ()=>{
   await hydrateAllFromSupabase();
 
   renderAll();
-});
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", startApp);
+} else {
+  startApp();
+}

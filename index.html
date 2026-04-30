@@ -2,17 +2,25 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
-  <title>Planning scolaire Supabase</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Planning scolaire – Supabase</title>
   <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
-
   <header>
-    <h1>Planning scolaire</h1>
-    <span id="sync-dot"></span>
-  </header>
+    <div class="brand"><span>Planning</span> scolaire – Heures</div>
 
-  <main>
+    <div class="tabs">
+      <button class="tab active" data-view="planning">Semaine</button>
+      <button class="tab" data-view="stats">Statistiques</button>
+      <button class="tab" data-view="prefill">Pré‑remplissage</button>
+      <button class="tab" data-view="advstats_act">Statistiques avancées</button>
+    </div>
+
+    <div class="spacer"></div>
+
+    <span id="sync-dot"></span>
 
     <!-- AUTH -->
     <div id="auth-form" style="display:none;">
@@ -26,45 +34,64 @@
       <span id="user-email"></span>
       <button id="btn-logout" class="btn" type="button">Déconnexion</button>
     </div>
+  </header>
 
-    <!-- PLANNING -->
-    <section>
-      <h2>Planning</h2>
-      <div id="planning"></div>
-    </section>
+  <main>
+    <div class="views">
 
-    <!-- OBJECTIFS -->
-    <section>
-      <h2>Objectifs</h2>
-      <div id="objectifs"></div>
-    </section>
+      <!-- SEMAINE -->
+      <section id="view-planning" class="active">
+        <div class="card">
+          <div class="row">
+            <button class="btn secondary" id="prevWeek">◀</button>
+            <div class="pill" id="weekLabel">Semaine</div>
+            <button class="btn secondary" id="nextWeek">▶</button>
+            <select id="weekSelect"></select>
 
-    <!-- TEMPLATE -->
-    <section>
-      <h2>Modèle de semaine</h2>
-      <div id="template"></div>
-    </section>
+            <div class="spacer"></div>
 
-    <!-- STATISTIQUES -->
-    <section>
-      <h2>Statistiques</h2>
-      <div id="stats"></div>
-    </section>
+            <!-- boutons présents comme dans l'ancienne app -->
+            <button class="btn secondary" id="btnExportJson" disabled title="Étape 3 (import/export)">Exporter (JSON)</button>
+            <label class="btn secondary" style="cursor:not-allowed; opacity:.6" title="Étape 3 (import/export)">
+              Importer (JSON)
+              <input id="importJson" type="file" accept="application/json" style="display:none" disabled>
+            </label>
+            <label class="btn secondary" style="cursor:not-allowed; opacity:.6" title="Étape 3 (import/export)">
+              Importer CSV (Semaine XX)
+              <input id="importCSV" type="file" accept=".csv,text/csv" multiple style="display:none" disabled>
+            </label>
+          </div>
 
-    <!-- IMPORT / EXPORT -->
-    <section>
-      <button id="export-btn" type="button">Exporter</button>
-      <button id="import-btn" type="button">Importer</button>
-      <input id="import-file" type="file" hidden>
-    </section>
+          <div style="height:12px"></div>
 
+          <div class="gridwrap">
+            <table id="grid"></table>
+          </div>
+        </div>
+      </section>
+
+      <!-- placeholders (Étape 1.2 / 1.3 / 1.4) -->
+      <section id="view-stats"><div class="card">Statistiques (à brancher Étape 1.2)</div></section>
+      <section id="view-prefill"><div class="card">Pré‑remplissage (à brancher Étape 1.3)</div></section>
+      <section id="view-advstats_act"><div class="card">Stats avancées (à brancher Étape 1.4)</div></section>
+    </div>
   </main>
 
-  <footer>
-    <span>© 2026</span>
-  </footer>
+  <!-- MODAL principal (comme l'ancienne app) -->
+  <div class="overlay" id="overlay">
+    <div class="modal" role="dialog" aria-modal="true">
+      <h3 id="mTitle">Modifier</h3>
+      <div class="sub" id="mSub"></div>
+      <div class="choices" id="choices"></div>
+      <div class="actions">
+        <button class="btn secondary" id="mCancel">Annuler</button>
+        <button class="btn" id="mSave">Enregistrer</button>
+      </div>
+    </div>
+  </div>
 
-<script type="module" src="app.js?v=2"></script>
+  <div class="toast" id="toast"></div>
 
+  <script type="module" src="app.js"></script>
 </body>
 </html>

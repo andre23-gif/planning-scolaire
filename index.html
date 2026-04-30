@@ -6,29 +6,65 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
   <header>
     <h1>Planning scolaire</h1>
     <span id="sync-dot"></span>
   </header>
 
   <main>
+
+    <!-- AUTH -->
     <div id="auth-form" style="display:none;">
       <input id="auth-email" placeholder="email">
       <input id="auth-password" type="password" placeholder="mot de passe">
       <button id="btn-login" type="button">Connexion</button>
       <button id="btn-signup" type="button">Inscription</button>
     </div>
+
     <div id="user-bar" style="display:none;">
       <span id="user-email"></span>
       <button id="btn-logout" class="btn" type="button">Déconnexion</button>
     </div>
-    <div id="planning"></div>
+
+    <!-- PLANNING -->
+    <section>
+      <h2>Planning</h2>
+      <div id="planning"></div>
+    </section>
+
+    <!-- OBJECTIFS -->
+    <section>
+      <h2>Objectifs</h2>
+      <div id="objectifs"></div>
+    </section>
+
+    <!-- TEMPLATE -->
+    <section>
+      <h2>Modèle de semaine</h2>
+      <div id="template"></div>
+    </section>
+
+    <!-- STATISTIQUES -->
+    <section>
+      <h2>Statistiques</h2>
+      <div id="stats"></div>
+    </section>
+
+    <!-- IMPORT / EXPORT -->
+    <section>
+      <button id="export-btn" type="button">Exporter</button>
+      <button id="import-btn" type="button">Importer</button>
+      <input id="import-file" type="file" hidden>
+    </section>
+
   </main>
 
   <footer>
     <span>© 2026</span>
   </footer>
+
   <script type="module" src="app.js"></script>
+
 </body>
 </html>
-

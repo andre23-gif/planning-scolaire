@@ -1,1 +1,28 @@
-
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  background: #f7f7fa;
+  color: #222;
+}
+header, footer {
+  background: #24308f;
+  color: #fff;
+  padding: 16px;
+}
+.btn {
+  background: #2CA768;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-weight: bold;
+  cursor: pointer;
+}
+#sync-dot {
+  display: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-left: 10px;
+}
+``

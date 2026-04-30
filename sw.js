@@ -1,6 +1,6 @@
 // Planning scolaire – PWA cache
 // Incrémente ce nom à chaque déploiement (v3 -> v4 -> v5)
-const CACHE_NAME = "planning-scolaire-v3";
+const CACHE_NAME = "planning-scolaire-v4";
 
 const ASSETS = [
   "./",

@@ -1,4 +1,7 @@
-/* ====== UI reprise de l'app "Planning scolaire – Heures" ====== */
+/* ==============================
+   Planning scolaire – Supabase
+   UI V3 (anti-casse)
+   ============================== */
 
 :root{
   --bg-royal:#24308f;
@@ -107,6 +110,13 @@ main{max-width:1200px; margin:0 auto; padding:16px;}
   font-family:var(--font-type);
 }
 
+.hint{
+  color:var(--dim);
+  font-size:12px;
+  margin-top:10px;
+  font-family:var(--font-type);
+}
+
 .btn{
   border:none;
   background: linear-gradient(180deg, rgba(245,200,75,1), rgba(212,166,42,1));
@@ -131,6 +141,24 @@ select, input{
   padding:10px 12px;
   border-radius: var(--r-input);
   font-family:var(--font-type);
+}
+
+.auth input{
+  width:180px;
+}
+.auth{
+  display:flex;
+  gap:8px;
+  align-items:center;
+  flex-wrap:wrap;
+}
+
+/* Sync dot */
+#sync-dot{
+  display:none;
+  width:10px;
+  height:10px;
+  border-radius:50%;
 }
 
 /* Table semaine */
@@ -215,12 +243,3 @@ td:last-child{border-right:none}
   font-family:var(--font-type);
 }
 .toast.show{opacity:1; transform:translateY(0)}
-
-/* Sync dot */
-#sync-dot{
-  display:none;
-  width:10px;
-  height:10px;
-  border-radius:50%;
-}
-``

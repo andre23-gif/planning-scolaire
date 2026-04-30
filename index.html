@@ -3,10 +3,29 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Planning scolaire – Supabase</title>
+  <meta name="theme-color" content="#24308f" />
+  <title>Planning scolaire – Heures (Supabase)</title>
 
-  <!-- ANTI-CACHE : change V3 → V4 quand tu modifies -->
-  <link rel="stylesheet" href="style.css?v=V3">
+  <!-- PWA (comme l'original) -->
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icon-192.png">
+  <link rel="apple-touch-icon" href="./icon-192.png">
+
+  <!-- Fonts (comme l'original) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Petit+Formal+Script&family=Poiret+One&display=swap" rel="stylesheet">
+
+  <!-- =========================================================
+       ANTI-CACHE GLOBAL (V1 / V2 / V3)
+       ➜ Change cette valeur UNIQUEMENT : "v3" -> "v4" -> "v5" ...
+       ========================================================= -->
+  <script>
+    window.APP_VERSION = "v3";
+  </script>
+
+  <!-- CSS versionné -->
+  <link id="app-css" rel="stylesheet" href="">
 </head>
 
 <body>
@@ -20,11 +39,13 @@
       <button class="tab" data-view="advstats_act">Statistiques avancées</button>
     </div>
 
+    <!-- Zone droite (auth + synchro) -->
     <div class="spacer"></div>
 
-    <span id="sync-dot" title="Statut Supabase"></span>
+    <!-- Voyant synchro Supabase -->
+    <span id="sync-dot" title="Synchro Supabase"></span>
 
-    <!-- AUTH -->
+    <!-- Auth Supabase : formulaire -->
     <div id="auth-form" class="auth" style="display:none;">
       <input id="auth-email" placeholder="email">
       <input id="auth-password" type="password" placeholder="mot de passe">
@@ -32,6 +53,7 @@
       <button id="btn-signup" class="btn secondary" type="button">Inscription</button>
     </div>
 
+    <!-- Auth Supabase : barre user -->
     <div id="user-bar" class="auth" style="display:none;">
       <span id="user-email"></span>
       <button id="btn-logout" class="btn" type="button">Déconnexion</button>
@@ -40,8 +62,9 @@
 
   <main>
     <div class="views">
-
-      <!-- SEMAINE -->
+      <!-- =======================
+           SEMAINE (identique original)
+           ======================= -->
       <section id="view-planning" class="active">
         <div class="card">
           <div class="row">
@@ -52,15 +75,16 @@
 
             <div class="spacer"></div>
 
-            <!-- Étape 3 (import/export) : on garde, désactivé pour éviter bugs -->
-            <button class="btn secondary" id="btnExportJson" disabled title="Étape 3">Exporter (JSON)</button>
-            <label class="btn secondary disabled" title="Étape 3">
+            <button class="btn secondary" id="btnExportJson">Exporter (JSON)</button>
+
+            <label class="btn secondary" style="cursor:pointer">
               Importer (JSON)
-              <input id="importJson" type="file" accept="application/json" style="display:none" disabled>
+              <input id="importJson" type="file" accept="application/json" style="display:none">
             </label>
-            <label class="btn secondary disabled" title="Étape 3">
+
+            <label class="btn secondary" style="cursor:pointer">
               Importer CSV (Semaine XX)
-              <input id="importCSV" type="file" accept=".csv,text/csv" multiple style="display:none" disabled>
+              <input id="importCSV" type="file" accept=".csv,text/csv" multiple style="display:none">
             </label>
           </div>
 
@@ -69,38 +93,229 @@
           <div class="gridwrap">
             <table id="grid"></table>
           </div>
-
-          <div class="hint">Clique une case pour choisir une activité. (Connexion requise pour enregistrer.)</div>
         </div>
       </section>
 
-      <!-- Placeholders (Étapes 1.2 / 1.3 / 1.4) -->
+      <!-- =======================
+           STATISTIQUES (identique original)
+           ======================= -->
       <section id="view-stats">
-        <div class="card">
-          <div class="pill">Statistiques</div>
-          <div class="hint">Étape 1.2 : UI complète des statistiques à intégrer.</div>
-          <div id="stats"></div>
+        <div class="card" style="margin-bottom:12px">
+          <div class="row">
+            <div class="pill">Période :</div>
+            <select id="periodSelect">
+              <option value="school">Année scolaire (T1+T2+T3 + bonus été)</option>
+              <option value="t1">Trimestre 1 (S36→S48)</option>
+              <option value="t2">Trimestre 2 (S49→S11)</option>
+              <option value="t3">Trimestre 3 (S12→S27)</option>
+              <option value="bonus">Bonus été (S28→S35)</option>
+            </select>
+
+            <div class="spacer"></div>
+            <button class="btn secondary" id="btnExportCsv">Exporter stats (CSV)</button>
+          </div>
+
+          <div style="height:10px"></div>
+
+          <div class="row">
+            <div class="pill">Semaines travaillées (diviseur) :</div>
+            <input type="range" id="workedRange" min="1" max="60" value="36">
+            <input type="number" id="workedInput" min="1" max="60" step="1" value="36">
+            <div class="pill">Choisi : <b id="workedLabel" style="color:var(--text)">36</b></div>
+
+            <div class="spacer"></div>
+
+            <div class="pill">Total réalisé : <b id="totalReal" style="color:var(--text)">0</b> h</div>
+            <div class="pill">Moyenne : <b id="avgPerWeek" style="color:var(--text)">0</b> h / semaine</div>
+          </div>
+
+          <div style="height:10px"></div>
+
+          <div class="row">
+            <div class="pill">Objectif global :</div>
+            <input id="globalExpected" type="number" min="0" step="1" placeholder="—">
+            <div class="pill"><span id="globalStatus">—</span></div>
+
+            <div class="spacer"></div>
+
+            <div class="pill">Seuil proche (%)</div>
+            <input id="warnPct" type="number" min="50" max="99" step="1" style="width:90px">
+            <div class="pill">Seuil alerte (%)</div>
+            <input id="alertPct" type="number" min="100" max="300" step="1" style="width:90px">
+          </div>
+
+          <div class="row" style="margin-top:10px">
+            <div class="pill">Progression globale :</div>
+            <div class="track" style="flex:1; min-width:220px">
+              <div id="globalFill" class="fill" style="width:0%; background: var(--dim)"></div>
+            </div>
+            <div class="pill" id="globalBarText">—</div>
+          </div>
+
+          <div class="hint">
+            Le diviseur ne filtre pas les semaines. En Année scolaire, le bonus été est inclus dans le total sans augmenter le diviseur.
+          </div>
+        </div>
+
+        <div class="statsgrid">
+          <div class="card">
+            <div style="font-weight:900; font-family:var(--font-type); letter-spacing:.03em;">Réalisé vs attendu (par activité)</div>
+            <div class="hint">Renseigne l’attendu pour la période choisie (ou laisse vide).</div>
+            <div class="bars" id="bars"></div>
+          </div>
+
+          <div class="card">
+            <div style="font-weight:900; font-family:var(--font-type); letter-spacing:.03em;">Évolution (heures actives / semaine)</div>
+            <div class="hint">Série sur la période sélectionnée.</div>
+            <div id="spark"></div>
+          </div>
         </div>
       </section>
 
+      <!-- =======================
+           PRÉ-REMPLISSAGE (identique original)
+           ======================= -->
       <section id="view-prefill">
         <div class="card">
-          <div class="pill">Pré‑remplissage</div>
-          <div class="hint">Étape 1.3 : UI modèle de semaine à intégrer.</div>
-          <div id="template"></div>
+          <div class="row">
+            <div class="pill">Modèle</div>
+            <button class="btn secondary" id="pfCopyFromWeek">Copier depuis…</button>
+            <select id="pfSourceWeek"></select>
+
+            <div class="spacer"></div>
+
+            <button class="btn secondary" id="pfClear">Vider</button>
+            <button class="btn" id="pfSave">Enregistrer</button>
+          </div>
+
+          <div class="hint">
+            Crée une semaine modèle puis applique-la à plusieurs semaines. Ensuite tu ajustes (ex : S37) dans l’onglet Semaine.
+          </div>
+
+          <div style="height:12px"></div>
+
+          <div class="row" style="align-items:flex-start">
+            <div style="min-width:280px;max-width:380px;flex:0 0 320px">
+              <div class="pill" style="display:inline-block;margin-bottom:8px">Semaines cibles</div>
+
+              <div class="row" style="margin-bottom:10px">
+                <button class="btn secondary" id="pfAll">Tout</button>
+                <button class="btn secondary" id="pfNone">Aucun</button>
+                <button class="btn secondary" id="pfT1">T1</button>
+                <button class="btn secondary" id="pfT2">T2</button>
+                <button class="btn secondary" id="pfT3">T3</button>
+                <button class="btn secondary" id="pfBonus">Bonus</button>
+              </div>
+
+              <div class="hint" id="pfCount">0 semaine sélectionnée</div>
+              <div style="height:10px"></div>
+              <div style="border:1px solid rgba(36,48,143,.16);border-radius:22px;padding:10px;background:rgba(255,255,255,.70);max-height:360px;overflow:auto" id="pfWeekList"></div>
+
+              <div style="height:12px"></div>
+
+              <div style="border:1px solid rgba(36,48,143,.16);border-radius:22px;padding:10px;background:rgba(255,255,255,.70)">
+                <div class="hint" style="margin:0 0 10px 0;color:var(--text);font-weight:800; font-family:var(--font-type);">Appliquer le modèle</div>
+
+                <label class="hint" style="display:flex;gap:8px;align-items:center;margin:0 0 10px 0">
+                  <input type="checkbox" id="pfOnlyEmpty">
+                  Appliquer seulement sur les cases vides (Occupation)
+                </label>
+
+                <label class="hint" style="display:flex;gap:8px;align-items:center;margin:0 0 10px 0">
+                  <input type="checkbox" id="pfIncludeOccupation">
+                  Inclure “Occupation” (écrase tout)
+                </label>
+
+                <button class="btn" id="pfApply">Appliquer</button>
+              </div>
+            </div>
+
+            <div style="flex:1;min-width:360px">
+              <div class="pill" style="display:inline-block;margin-bottom:8px">Semaine modèle</div>
+              <div class="gridwrap">
+                <table id="pfGrid"></table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="overlay" id="pfOverlay">
+          <div class="modal" role="dialog" aria-modal="true">
+            <h3 id="pfMTitle">Choisir une activité</h3>
+            <div class="sub" id="pfMSub"></div>
+            <div class="choices" id="pfChoices"></div>
+            <div class="actions">
+              <button class="btn secondary" id="pfCancel">Annuler</button>
+              <button class="btn" id="pfOk">OK</button>
+            </div>
+          </div>
         </div>
       </section>
 
+      <!-- =======================
+           STATISTIQUES AVANCÉES (identique original)
+           ======================= -->
       <section id="view-advstats_act">
         <div class="card">
-          <div class="pill">Statistiques avancées</div>
-          <div class="hint">Étape 1.4 : UI stats avancées à intégrer.</div>
+          <div class="row">
+            <div class="pill">Temps pris en compte :</div>
+            <select id="aaPeriod">
+              <option value="school">Année scolaire</option>
+              <option value="t1">Trimestre 1</option>
+              <option value="t2">Trimestre 2</option>
+              <option value="t3">Trimestre 3</option>
+              <option value="bonus">Bonus été</option>
+            </select>
+
+            <div class="spacer"></div>
+
+            <div class="pill">Semaines :</div>
+            <div class="pill"><b id="aaWeeks" style="color:var(--text)">0</b></div>
+
+            <div class="pill">Total :</div>
+            <div class="pill"><b id="aaTotal" style="color:var(--text)">0</b> h</div>
+
+            <div class="pill">Moyenne :</div>
+            <div class="pill"><b id="aaAvg" style="color:var(--text)">0</b> h / semaine</div>
+          </div>
+
+          <div class="hint">Coche les activités à prendre en compte. Couleurs = celles de la grille.</div>
+
+          <div style="height:12px"></div>
+
+          <div class="row" style="align-items:flex-start">
+            <div style="min-width:280px;max-width:420px;flex:0 0 360px">
+              <div class="pill" style="display:inline-block;margin-bottom:10px">Activités</div>
+
+              <div class="row" style="margin-bottom:10px">
+                <button class="btn secondary" id="aaAll">Tout</button>
+                <button class="btn secondary" id="aaNone">Aucun</button>
+              </div>
+
+              <div id="aaChecks" style="border:1px solid rgba(36,48,143,.16);border-radius:22px;padding:10px;background:rgba(255,255,255,.70);max-height:480px;overflow:auto"></div>
+            </div>
+
+            <div style="flex:1;min-width:360px">
+              <div style="display:grid;grid-template-columns:1fr;gap:12px">
+                <div style="border:1px solid rgba(36,48,143,.16);border-radius:22px;background:rgba(255,255,255,.70);padding:10px;overflow:auto">
+                  <div style="font-weight:900; font-family:var(--font-type); letter-spacing:.03em; margin-bottom:6px">Barres</div>
+                  <div id="aaBars"></div>
+                </div>
+
+                <div style="border:1px solid rgba(36,48,143,.16);border-radius:22px;background:rgba(255,255,255,.70);padding:10px;overflow:auto">
+                  <div style="font-weight:900; font-family:var(--font-type); letter-spacing:.03em; margin-bottom:6px">Camembert</div>
+                  <div id="aaPie"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
         </div>
       </section>
     </div>
   </main>
 
-  <!-- MODAL activité -->
+  <!-- Modal principal -->
   <div class="overlay" id="overlay">
     <div class="modal" role="dialog" aria-modal="true">
       <h3 id="mTitle">Modifier</h3>
@@ -115,7 +330,27 @@
 
   <div class="toast" id="toast"></div>
 
-  <!-- ANTI-CACHE : change V3 → V4 quand tu modifies -->
-  <script type="module" src="app.js?v=V3"></script>
+  <!-- Charge style.css/app.js en versionnant via APP_VERSION -->
+  <script>
+    const v = window.APP_VERSION || "v1";
+    const css = document.createElement("link");
+    css.rel = "stylesheet";
+    css.href = `./style.css?v=${encodeURIComponent(v)}`;
+    document.head.appendChild(css);
+
+    const s = document.createElement("script");
+    s.type = "module";
+    s.src = `./app.js?v=${encodeURIComponent(v)}`;
+    document.body.appendChild(s);
+  </script>
+
+  <!-- Service worker (comme l'original) -->
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("./sw.js").catch(() => {});
+      });
+    }
+  </script>
 </body>
 </html>

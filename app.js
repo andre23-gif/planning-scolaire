@@ -1,4 +1,16 @@
-import { supabase } from "./supabaseClient.js";import { supabase } from "./D7A6",
+import { supabase } from "./supabaseClient.js";
+
+/* ======================================================
+   CONFIG (UI & données) — conforme à l’app d’origine
+====================================================== */
+const DAYS = ["Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi","Dimanche"];
+const SLOTS = ["Préparation","M1","M2","M3","M4","Midi","S1","S2","S3","S4","Soir 1","Soir 2","Soir 3","Soir 4","Nuit 1","Nuit 2","Nuit 3","Nuit 4","Nuit 5"];
+const ACTIVITIES = ["Cours","CDC/suivi","Préparation","Instances","Parcours Avenir","Baroque","Gestion","Numérique","Coordination","Réunion","Amicale","Autres","Pépinières","Occupation"];
+
+const COLORS = {
+  "Cours":           "#6AAFE6",
+  "CDC/suivi":       "#5C9BD6",
+  "Préparation":     "#E9D7A6",
   "Instances":       "#D7D2C6",
   "Parcours Avenir": "#7FD6C9",
   "Baroque":         "#73C5B7",
@@ -13,7 +25,7 @@ import { supabase } from "./supabaseClient.js";import { supabase } from "./D7A6"
 };
 
 /* ======================================================
-   PÉRIODES (identique original)
+   PÉRIODES (comme l’original)
 ====================================================== */
 const T1 = Array.from({length:(48-36+1)}, (_,i)=>36+i);
 const T2 = [...Array.from({length:(52-49+1)},(_,i)=>49+i), ...Array.from({length:11},(_,i)=>1+i)];
@@ -38,26 +50,63 @@ const SCHOOL_ORDER = uniqueOrdered([
 ]);
 
 /* ======================================================
-   SUPABASE AUTH + SYNC
+   DOM helpers
 ====================================================== */
-let CURRENT_UID = null;
-
 const $ = (id) => document.getElementById(id);
-
-function setSyncStatus(connected) {
-  const dot = $("sync-dot");
-  dot.style.display = "inline-block";
-  dot.style.background = connected ? "#2CA768" : "#7B2D2D";
-}
 
 function toast(msg){
   const t = $("toast");
+  if(!t) return;
   t.textContent = msg;
   t.classList.add("show");
   setTimeout(()=>t.classList.remove("show"), 1600);
 }
 
-async function updateUserBar() {
+function setSyncStatus(ok){
+  const dot = $("sync-dot");
+  if(!dot) return;
+  dot.style.display = "inline-block";
+  dot.style.background = ok ? "#2CA768" : "#7B2D2D";
+}
+
+function fixText(s){
+  return (s || "")
+    .replaceAll("PrĂ©paration","Préparation")
+    .replaceAll("PrÃ©paration","Préparation")
+    .replaceAll("RĂ©union","Réunion")
+    .replaceAll("RÃ©union","Réunion");
+}
+
+/* ======================================================
+   STATE — mêmes structures que l’original
+====================================================== */
+function defaultObjectifs(){
+  return {
+    global: { school:0, t1:0, t2:0, t3:0, bonus:0 },
+    perActivity: { school:{}, t1:{}, t2:{}, t3:{}, bonus:{} },
+    thresholds: { warnPct: 90, alertPct: 110 }
+  };
+}
+function emptyTemplate(){
+  const t={};
+  for(const slot of SLOTS){
+    t[slot]={};
+    for(const day of DAYS) t[slot][day]="Occupation";
+  }
+  return t;
+}
+
+let CURRENT_UID = null;
+
+// overrides stocké comme l’original : clé "S12|M1|Lundi" -> "Cours"
+let overrides = {};
+let objectifs = defaultObjectifs();
+let TEMPLATE = emptyTemplate();
+
+/* ======================================================
+   SUPABASE AUTH (boutons + affichage)
+====================================================== */
+async function updateUserBar(){
   const { data } = await supabase.auth.getUser();
   if (data?.user) {
     CURRENT_UID = data.user.id;
@@ -72,14 +121,15 @@ async function updateUserBar() {
   }
 }
 
-async function login(email, password) {
+async function login(email, password){
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) { alert("Erreur connexion : " + error.message); return; }
   await updateUserBar();
   await hydrateAllFromSupabase();
-  renderWeek(); renderStats(); renderAdvStats(); refreshPrefillWeekList(); renderPrefillGrid();
+  renderAll();
 }
-async function signup(email, password) {
+
+async function signup(email, password){
   const { error } = await supabase.auth.signUp({ email, password });
   if (error) {
     const msg = (error.message || "").toLowerCase();
@@ -90,57 +140,29 @@ async function signup(email, password) {
   alert("Inscription réussie !");
   await updateUserBar();
   await hydrateAllFromSupabase();
-  renderWeek(); renderStats(); renderAdvStats(); refreshPrefillWeekList(); renderPrefillGrid();
+  renderAll();
 }
-async function logout() {
+
+async function logout(){
   await supabase.auth.signOut();
   await updateUserBar();
   overrides = {};
   objectifs = defaultObjectifs();
   TEMPLATE = emptyTemplate();
-  renderWeek(); renderStats(); renderAdvStats(); refreshPrefillWeekList(); renderPrefillGrid();
+  renderAll();
 }
-
-$("btn-login").onclick = () => login($("auth-email").value, $("auth-password").value);
-$("btn-signup").onclick = () => signup($("auth-email").value, $("auth-password").value);
-$("btn-logout").onclick = logout;
 
 /* ======================================================
-   STOCKAGE en mémoire (format compatible original)
-   - overrides : objet { "S12|M1|Lundi": "Cours", ... }
-   - objectifs : objet complet (global/perActivity/thresholds)
-   - TEMPLATE  : objet template[slot][day] = activity
-====================================================== */
-function defaultObjectifs(){
-  return {
-    global: { school:0, t1:0, t2:0, t3:0, bonus:0 },
-    perActivity: { school:{}, t1:{}, t2:{}, t3:{}, bonus:{} },
-    thresholds: { warnPct: 90, alertPct: 110 }
-  };
-}
-let overrides = {};
-let objectifs = defaultObjectifs();
-function emptyTemplate(){
-  const t={};
-  for(const slot of SLOTS){
-    t[slot]={};
-    for(const day of DAYS) t[slot][day]="Occupation";
-  }
-  return t;
-}
-let TEMPLATE = emptyTemplate();
-
-/* ======================================================
-   SUPABASE DB HELPERS
+   SUPABASE DB — tables: overrides / objectifs / template
 ====================================================== */
 function k(week, slot, day){ return `S${week}|${slot}|${day}`; }
+
 function parseKey(key){
-  // "S12|M1|Lundi"
   const parts = (key||"").split("|");
   if(parts.length !== 3) return null;
   const week = parseInt(parts[0].replace(/^S/i,""),10);
   const slot = parts[1];
-  const day = parts[2];
+  const day  = parts[2];
   if(!Number.isFinite(week)) return null;
   return {week, slot, day};
 }
@@ -150,20 +172,22 @@ async function hydrateOverrides(){
   const { data, error } = await supabase.from("overrides").select("*").eq("user_id", CURRENT_UID);
   setSyncStatus(!error);
   overrides = {};
-  (data || []).forEach(r=>{
-    overrides[k(r.week, r.slot, r.day)] = r.activity;
-  });
+  (data || []).forEach(r => { overrides[k(r.week, r.slot, r.day)] = r.activity; });
 }
 
 async function persistOverride(week, slot, day, activity){
   if(!CURRENT_UID){ toast("Connecte-toi pour enregistrer"); return; }
-  const { error } = await supabase.from("overrides").upsert([{ user_id: CURRENT_UID, week, slot, day, activity }]);
+  const { error } = await supabase.from("overrides")
+    .upsert([{ user_id: CURRENT_UID, week, slot, day, activity }]);
   setSyncStatus(!error);
 }
 
 async function hydrateObjectifs(){
   if(!CURRENT_UID){ objectifs = defaultObjectifs(); return; }
-  const { data, error } = await supabase.from("objectifs").select("data").eq("user_id", CURRENT_UID).limit(1);
+  const { data, error } = await supabase.from("objectifs")
+    .select("data")
+    .eq("user_id", CURRENT_UID)
+    .limit(1);
   setSyncStatus(!error);
   if(data && data.length>0 && data[0].data) objectifs = data[0].data;
   else objectifs = defaultObjectifs();
@@ -171,13 +195,17 @@ async function hydrateObjectifs(){
 
 async function persistObjectifs(){
   if(!CURRENT_UID) return;
-  const { error } = await supabase.from("objectifs").upsert([{ user_id: CURRENT_UID, data: objectifs }]);
+  const { error } = await supabase.from("objectifs")
+    .upsert([{ user_id: CURRENT_UID, data: objectifs }]);
   setSyncStatus(!error);
 }
 
 async function hydrateTemplate(){
   if(!CURRENT_UID){ TEMPLATE = emptyTemplate(); return; }
-  const { data, error } = await supabase.from("template").select("data").eq("user_id", CURRENT_UID).limit(1);
+  const { data, error } = await supabase.from("template")
+    .select("data")
+    .eq("user_id", CURRENT_UID)
+    .limit(1);
   setSyncStatus(!error);
   if(data && data.length>0 && data[0].data) TEMPLATE = data[0].data;
   else TEMPLATE = emptyTemplate();
@@ -185,7 +213,8 @@ async function hydrateTemplate(){
 
 async function persistTemplate(){
   if(!CURRENT_UID) return;
-  const { error } = await supabase.from("template").upsert([{ user_id: CURRENT_UID, data: TEMPLATE }]);
+  const { error } = await supabase.from("template")
+    .upsert([{ user_id: CURRENT_UID, data: TEMPLATE }]);
   setSyncStatus(!error);
 }
 
@@ -195,29 +224,42 @@ async function hydrateAllFromSupabase(){
   await hydrateTemplate();
 }
 
+/* bulk upsert overrides (import/apply) — chunké */
+async function upsertOverridesBulk(){
+  if(!CURRENT_UID) return;
+  const rows = [];
+  for(const key of Object.keys(overrides)){
+    const p = parseKey(key);
+    if(!p) continue;
+    rows.push({ user_id: CURRENT_UID, week:p.week, slot:p.slot, day:p.day, activity: overrides[key] });
+  }
+  if(!rows.length) return;
+
+  const CHUNK = 500;
+  for(let i=0;i<rows.length;i+=CHUNK){
+    const part = rows.slice(i, i+CHUNK);
+    const { error } = await supabase.from("overrides").upsert(part);
+    setSyncStatus(!error);
+    if(error) break;
+  }
+}
+
 /* ======================================================
-   HELPERS (identique original)
+   HELPERS Planning
 ====================================================== */
 function getCell(week, slot, day){
   const key = k(week,slot,day);
   if(overrides[key] !== undefined) return overrides[key];
   return "Occupation";
 }
+
 async function setCell(week, slot, day, val){
   overrides[k(week,slot,day)] = val;
   await persistOverride(week, slot, day, val);
 }
 
-function fixText(s){
-  return (s || "")
-    .replaceAll("PrĂ©paration","Préparation")
-    .replaceAll("PrÃ©paration","Préparation")
-    .replaceAll("RĂ©union","Réunion")
-    .replaceAll("RÃ©union","Réunion");
-}
-
 /* ======================================================
-   NAV (onglets) (identique original)
+   NAV (onglets) — identique original
 ====================================================== */
 function showView(viewId){
   document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
@@ -232,64 +274,53 @@ function showView(viewId){
   if(viewId==="prefill"){ refreshPrefillWeekList(); renderPrefillGrid(); }
   if(viewId==="advstats_act") renderAdvStats();
 }
-document.querySelectorAll(".tab").forEach(t=>{
-  t.addEventListener("click", ()=>showView(t.dataset.view));
-});
 
 /* ======================================================
-   SEMAINE (identique original, sauf setCell async)
+   SEMAINE — identique original
 ====================================================== */
 let currentWeek = SCHOOL_ORDER[0];
-const weekSelect = $("weekSelect");
 
 function buildWeekSelect(){
-  weekSelect.innerHTML = "";
+  const sel = $("weekSelect");
+  sel.innerHTML = "";
   SCHOOL_ORDER.forEach(w=>{
     const opt=document.createElement("option");
     opt.value=w;
     opt.textContent="Semaine "+w;
-    weekSelect.appendChild(opt);
+    sel.appendChild(opt);
   });
-  weekSelect.value=currentWeek;
+  sel.value=currentWeek;
 }
-
-weekSelect.addEventListener("change", ()=>{
-  currentWeek = parseInt(weekSelect.value,10);
-  renderWeek();
-});
-$("prevWeek").addEventListener("click", ()=>{
-  const i = SCHOOL_ORDER.indexOf(currentWeek);
-  if(i>0){ currentWeek = SCHOOL_ORDER[i-1]; renderWeek(); }
-});
-$("nextWeek").addEventListener("click", ()=>{
-  const i = SCHOOL_ORDER.indexOf(currentWeek);
-  if(i<SCHOOL_ORDER.length-1){ currentWeek = SCHOOL_ORDER[i+1]; renderWeek(); }
-});
 
 function renderWeek(){
   $("weekLabel").textContent = "Semaine " + currentWeek;
-  weekSelect.value = currentWeek;
+  $("weekSelect").value = currentWeek;
 
   const table = $("grid");
   table.innerHTML = "";
 
   const thead = document.createElement("thead");
   const trh = document.createElement("tr");
+
   const th0 = document.createElement("th");
   th0.textContent = "Créneau";
   trh.appendChild(th0);
+
   DAYS.forEach(d=>{
     const th=document.createElement("th");
     th.textContent = d.slice(0,3).toUpperCase();
     trh.appendChild(th);
   });
+
   thead.appendChild(trh);
   table.appendChild(thead);
 
   const tbody=document.createElement("tbody");
   SLOTS.forEach(slot=>{
     const tr=document.createElement("tr");
-    const td0=document.createElement("td"); td0.textContent=slot; tr.appendChild(td0);
+    const td0=document.createElement("td");
+    td0.textContent=slot;
+    tr.appendChild(td0);
 
     DAYS.forEach(day=>{
       const td=document.createElement("td");
@@ -312,102 +343,57 @@ function renderWeek(){
 }
 
 /* ======================================================
-   MODAL (choix activité) (identique original, sauf save async)
+   MODAL — choix activité
 ====================================================== */
-const overlay = $("overlay");
-const choices = $("choices");
 let modalCtx = null;
 
 function openModal(week, slot, day){
   modalCtx = {week, slot, day};
+
   $("mTitle").textContent = slot + " — " + day;
   $("mSub").textContent = "Semaine " + week;
 
   const cur = getCell(week,slot,day);
+  const choices = $("choices");
   choices.innerHTML = "";
+
   ACTIVITIES.forEach(a=>{
     const btn=document.createElement("button");
     btn.className="choice" + (a===cur ? " sel": "");
     btn.style.background = COLORS[a] || "#444";
     btn.style.color = (a==="Occupation") ? "#666" : "#0b1020";
     btn.textContent = a;
+
     btn.addEventListener("click", ()=>{
       choices.querySelectorAll(".choice").forEach(x=>x.classList.remove("sel"));
       btn.classList.add("sel");
     });
+
     choices.appendChild(btn);
   });
 
-  overlay.classList.add("open");
+  $("overlay").classList.add("open");
 }
-function closeModal(){ overlay.classList.remove("open"); modalCtx=null; }
 
-$("mCancel").addEventListener("click", closeModal);
-overlay.addEventListener("click",(e)=>{ if(e.target===overlay) closeModal(); });
-
-$("mSave").addEventListener("click", async ()=>{
-  const sel = choices.querySelector(".choice.sel");
-  if(!sel || !modalCtx) return;
-
-  await setCell(modalCtx.week, modalCtx.slot, modalCtx.day, sel.textContent);
-  closeModal();
-  renderWeek();
-  renderStats();
-  renderAdvStats();
-  toast("Enregistré");
-});
+function closeModal(){
+  $("overlay").classList.remove("open");
+  modalCtx=null;
+}
 
 /* ======================================================
-   JSON Import/Export (compatible original)
+   JSON Import/Export
 ====================================================== */
-$("btnExportJson").addEventListener("click", ()=>{
-  const payload = { overrides, objectifs };
-  const blob = new Blob([JSON.stringify(payload,null,2)], {type:"application/json"});
+function download(filename, content, type){
+  const blob = new Blob([content], {type});
   const a=document.createElement("a");
   a.href=URL.createObjectURL(blob);
-  a.download="planning_scolaire_donnees.json";
+  a.download=filename;
   a.click();
   URL.revokeObjectURL(a.href);
-});
-
-$("importJson").addEventListener("change", async (e)=>{
-  const file=e.target.files && e.target.files[0];
-  if(!file) return;
-  const text=await file.text();
-  try{
-    const payload=JSON.parse(text);
-    if(payload.overrides) overrides = payload.overrides;
-    if(payload.objectifs) objectifs = payload.objectifs;
-
-    // persist Supabase
-    await persistObjectifs();
-
-    // persist overrides (bulk simple)
-    if(CURRENT_UID){
-      const rows = [];
-      for(const key of Object.keys(overrides)){
-        const p = parseKey(key);
-        if(!p) continue;
-        rows.push({ user_id: CURRENT_UID, week:p.week, slot:p.slot, day:p.day, activity: overrides[key] });
-      }
-      // upsert en une fois (si volumineux, tu pourras chunker)
-      if(rows.length) {
-        const { error } = await supabase.from("overrides").upsert(rows);
-        setSyncStatus(!error);
-      }
-    }
-
-    toast("Import JSON OK");
-    renderWeek(); renderStats(); renderAdvStats();
-  }catch(err){
-    toast("Import JSON impossible");
-  }finally{
-    e.target.value="";
-  }
-});
+}
 
 /* ======================================================
-   CSV import (hebdo) (identique original, mais setCell async)
+   CSV import hebdo
 ====================================================== */
 function detectDelimiter(line){
   const semis=(line.match(/;/g)||[]).length;
@@ -460,67 +446,20 @@ async function importWeeklyCSV(text, filename){
   }
   toast(`Import CSV OK – S${week} (${count} cellules)`);
 }
-$("importCSV").addEventListener("change", async (e)=>{
-  const files=e.target.files?Array.from(e.target.files):[];
-  if(!files.length) return;
-  for(const f of files){
-    const text=await f.text();
-    await importWeeklyCSV(text, f.name);
-  }
-  renderWeek(); renderStats(); renderAdvStats();
-  e.target.value="";
-});
 
 /* ======================================================
-   STATISTIQUES (principal) + ADV + PREFILL
-   (repris de l’original, avec persistObjectifs/persistTemplate)
+   STATS (principal)
 ====================================================== */
-const workedRange=$("workedRange");
-const workedInput=$("workedInput");
-const workedLabel=$("workedLabel");
-const periodSelect=$("periodSelect");
-const warnPctInput=$("warnPct");
-const alertPctInput=$("alertPct");
-
-function clampWeeks(v){
-  const min=parseInt(workedRange.min,10), max=parseInt(workedRange.max,10);
-  v=parseInt(v,10); if(isNaN(v)) v=min;
-  return Math.max(min, Math.min(max, v));
-}
-function setWeeksWorked(v){
-  const val=clampWeeks(v);
-  workedRange.value=String(val);
-  workedInput.value=String(val);
-  workedLabel.textContent=String(val);
-  renderStats();
-}
-workedRange.addEventListener("input", ()=>setWeeksWorked(workedRange.value));
-workedInput.addEventListener("input", ()=>{ if(workedInput.value!=="") setWeeksWorked(workedInput.value); });
-workedInput.addEventListener("blur", ()=>{ if(workedInput.value==="") setWeeksWorked(workedRange.value); });
-
-warnPctInput.value = objectifs.thresholds.warnPct ?? 90;
-alertPctInput.value = objectifs.thresholds.alertPct ?? 110;
-
-warnPctInput.addEventListener("change", async ()=>{
-  objectifs.thresholds.warnPct = Math.max(50, Math.min(99, Number(warnPctInput.value)||90));
-  warnPctInput.value = objectifs.thresholds.warnPct;
-  await persistObjectifs();
-  renderStats();
-});
-alertPctInput.addEventListener("change", async ()=>{
-  objectifs.thresholds.alertPct = Math.max(100, Math.min(300, Number(alertPctInput.value)||110));
-  alertPctInput.value = objectifs.thresholds.alertPct;
-  await persistObjectifs();
-  renderStats();
-});
-periodSelect.addEventListener("change", renderStats);
-
 let _statsTimer=null;
 function scheduleStatsRefresh(){
   clearTimeout(_statsTimer);
   _statsTimer = setTimeout(()=>{ try{ renderStats(); }catch(e){} }, 200);
 }
-
+function clampWeeks(v){
+  const min=parseInt($("workedRange").min,10), max=parseInt($("workedRange").max,10);
+  v=parseInt(v,10); if(isNaN(v)) v=min;
+  return Math.max(min, Math.min(max, v));
+}
 function countActivitiesForWeeks(weeks){
   const counts={};
   ACTIVITIES.forEach(a=>{ if(a!=="Occupation") counts[a]=0; });
@@ -534,7 +473,6 @@ function countActivitiesForWeeks(weeks){
   }
   return counts;
 }
-
 function renderSpark(points){
   const container = $("spark");
   if(!container) return;
@@ -555,22 +493,28 @@ function renderSpark(points){
 }
 
 function renderStats(){
-  const period = periodSelect.value;
+  const period = $("periodSelect").value;
+
+  // seuils
+  $("warnPct").value = objectifs.thresholds.warnPct ?? 90;
+  $("alertPct").value = objectifs.thresholds.alertPct ?? 110;
+
   const warnPct = objectifs.thresholds.warnPct ?? 90;
   const alertPct = objectifs.thresholds.alertPct ?? 110;
 
   const baseWeeks = weeksForPeriod(period);
   let weeksForNumerator = baseWeeks.slice();
-  if(period==="school"){
-    weeksForNumerator = uniqueOrdered([...weeksForNumerator, ...weeksForPeriod("bonus")]);
-  }
+  if(period==="school") weeksForNumerator = uniqueOrdered([...weeksForNumerator, ...weeksForPeriod("bonus")]);
 
   const counts = countActivitiesForWeeks(weeksForNumerator);
   const totalReal = Object.values(counts).reduce((s,v)=>s+v,0);
 
-  const divisor = clampWeeks(workedInput.value || workedRange.value);
-  const avg = totalReal / Math.max(1, divisor);
+  const divisor = clampWeeks($("workedInput").value || $("workedRange").value || 36);
+  $("workedRange").value = String(divisor);
+  $("workedInput").value = String(divisor);
+  $("workedLabel").textContent = String(divisor);
 
+  const avg = totalReal / Math.max(1, divisor);
   $("totalReal").textContent = String(totalReal);
   $("avgPerWeek").textContent = avg.toFixed(1);
 
@@ -581,6 +525,7 @@ function renderStats(){
 
   const globalExpectedInput=$("globalExpected");
   const globalStatus=$("globalStatus");
+
   globalExpectedInput.value = storedGlobal > 0 ? String(storedGlobal) : "";
   globalExpectedInput.placeholder = sumPerAct>0 ? `auto : ${sumPerAct}` : "—";
   globalExpectedInput.oninput = async ()=>{
@@ -702,15 +647,16 @@ function renderStats(){
 }
 
 /* Export CSV stats */
-$("btnExportCsv").addEventListener("click", ()=>{
-  const period = periodSelect.value;
+function exportStatsCSV(){
+  const period = $("periodSelect").value;
   const baseWeeks = weeksForPeriod(period);
   let weeksForNumerator = baseWeeks.slice();
   if(period==="school") weeksForNumerator = uniqueOrdered([...weeksForNumerator, ...weeksForPeriod("bonus")]);
 
   const counts = countActivitiesForWeeks(weeksForNumerator);
   const totalReal = Object.values(counts).reduce((s,v)=>s+v,0);
-  const divisor = clampWeeks(workedInput.value||workedRange.value);
+
+  const divisor = clampWeeks($("workedInput").value || $("workedRange").value || 36);
   const avg = totalReal / Math.max(1,divisor);
 
   const perAct = objectifs.perActivity[period] || {};
@@ -734,21 +680,17 @@ $("btnExportCsv").addEventListener("click", ()=>{
   });
 
   const csv=rows.map(r=>r.join(";")).join("\n");
-  const blob=new Blob([csv],{type:"text/csv"});
-  const a=document.createElement("a");
-  a.href=URL.createObjectURL(blob);
-  a.download="stats_planning_scolaire.csv";
-  a.click(); URL.revokeObjectURL(a.href);
-});
+  download("stats_planning_scolaire.csv", csv, "text/csv");
+}
 
-/* ===================== PREFILL + ADVSTATS (repris original, persist template) ===================== */
-const pfSourceWeek=$("pfSourceWeek");
-const pfWeekList=$("pfWeekList");
-const pfCount=$("pfCount");
-const pfGrid=$("pfGrid");
+/* ======================================================
+   PREFILL
+====================================================== */
 const pfSelectedWeeks = new Set();
+let pfCtx=null;
 
 function fillPrefillSourceWeeks(){
+  const pfSourceWeek=$("pfSourceWeek");
   pfSourceWeek.innerHTML="";
   SCHOOL_ORDER.forEach(w=>{
     const o=document.createElement("option");
@@ -756,7 +698,10 @@ function fillPrefillSourceWeeks(){
     pfSourceWeek.appendChild(o);
   });
 }
+
 function refreshPrefillWeekList(){
+  const pfWeekList=$("pfWeekList");
+  const pfCount=$("pfCount");
   pfWeekList.innerHTML="";
   SCHOOL_ORDER.forEach(w=>{
     const row=document.createElement("label");
@@ -776,19 +721,15 @@ function refreshPrefillWeekList(){
   });
   pfCount.textContent = pfSelectedWeeks.size + (pfSelectedWeeks.size<=1 ? " semaine sélectionnée":" semaines sélectionnées");
 }
+
 function setPrefillSelection(list){
   pfSelectedWeeks.clear();
   list.forEach(w=>pfSelectedWeeks.add(w));
   refreshPrefillWeekList();
 }
-$("pfAll").addEventListener("click", ()=>setPrefillSelection(SCHOOL_ORDER));
-$("pfNone").addEventListener("click", ()=>setPrefillSelection([]));
-$("pfT1").addEventListener("click", ()=>setPrefillSelection(weeksForPeriod("t1")));
-$("pfT2").addEventListener("click", ()=>setPrefillSelection(weeksForPeriod("t2")));
-$("pfT3").addEventListener("click", ()=>setPrefillSelection(weeksForPeriod("t3")));
-$("pfBonus").addEventListener("click", ()=>setPrefillSelection(weeksForPeriod("bonus")));
 
 function renderPrefillGrid(){
+  const pfGrid=$("pfGrid");
   pfGrid.innerHTML="";
   const thead=document.createElement("thead");
   const trh=document.createElement("tr");
@@ -818,14 +759,11 @@ function renderPrefillGrid(){
   pfGrid.appendChild(tbody);
 }
 
-const pfOverlay=$("pfOverlay");
-const pfChoices=$("pfChoices");
-let pfCtx=null;
-
 function openPrefillPicker(slot, day, current){
   pfCtx={slot,day,current};
   $("pfMTitle").textContent = slot+" — "+day;
   $("pfMSub").textContent = "Choisis une activité pour le modèle";
+  const pfChoices=$("pfChoices");
   pfChoices.innerHTML="";
   ACTIVITIES.forEach(a=>{
     const btn=document.createElement("button");
@@ -839,79 +777,18 @@ function openPrefillPicker(slot, day, current){
     });
     pfChoices.appendChild(btn);
   });
-  pfOverlay.classList.add("open");
+  $("pfOverlay").classList.add("open");
 }
-function closePrefillPicker(){ pfOverlay.classList.remove("open"); pfCtx=null; }
+function closePrefillPicker(){ $("pfOverlay").classList.remove("open"); pfCtx=null; }
 
-$("pfCancel").addEventListener("click", closePrefillPicker);
-pfOverlay.addEventListener("click",(e)=>{ if(e.target===pfOverlay) closePrefillPicker(); });
-$("pfOk").addEventListener("click", async ()=>{
-  const sel=pfChoices.querySelector(".choice.sel");
-  if(!sel || !pfCtx) return;
-  TEMPLATE[pfCtx.slot] ||= {};
-  TEMPLATE[pfCtx.slot][pfCtx.day] = sel.textContent;
-  await persistTemplate();
-  closePrefillPicker();
-  renderPrefillGrid();
-});
-
-$("pfCopyFromWeek").addEventListener("click", async ()=>{
-  const w=parseInt(pfSourceWeek.value,10);
-  if(!Number.isFinite(w)) return;
-  const t=emptyTemplate();
-  for(const slot of SLOTS) for(const day of DAYS) t[slot][day]=getCell(w,slot,day);
-  TEMPLATE=t;
-  await persistTemplate();
-  toast("Modèle copié depuis S"+w);
-  renderPrefillGrid();
-});
-$("pfClear").addEventListener("click", async ()=>{
-  TEMPLATE=emptyTemplate();
-  await persistTemplate();
-  toast("Modèle vidé");
-  renderPrefillGrid();
-});
-$("pfSave").addEventListener("click", async ()=>{
-  await persistTemplate();
-  toast("Modèle enregistré");
-});
-
-$("pfApply").addEventListener("click", async ()=>{
-  const weeks=Array.from(pfSelectedWeeks);
-  if(!weeks.length){ toast("Aucune semaine cochée"); return; }
-
-  const onlyEmpty = $("pfOnlyEmpty").checked;
-  const includeOcc = $("pfIncludeOccupation").checked;
-
-  let writes=0;
-  for(const w of weeks){
-    for(const slot of SLOTS){
-      for(const day of DAYS){
-        const val = (TEMPLATE[slot] && TEMPLATE[slot][day]) ? TEMPLATE[slot][day] : "Occupation";
-        if(!includeOcc && val==="Occupation") continue;
-        if(onlyEmpty && getCell(w,slot,day)!=="Occupation") continue;
-        await setCell(w,slot,day,val);
-        writes++;
-      }
-    }
-  }
-  toast(`Modèle appliqué (${writes} cellules)`);
-  renderWeek(); renderStats(); renderAdvStats();
-});
-
-/* --- ADV STATS (identique original) --- */
-const aaPeriod=$("aaPeriod");
-const aaChecks=$("aaChecks");
-const aaWeeks=$("aaWeeks");
-const aaTotal=$("aaTotal");
-const aaAvg=$("aaAvg");
-const aaBars=$("aaBars");
-const aaPie=$("aaPie");
-
+/* ======================================================
+   ADV STATS
+====================================================== */
 const advActs = ACTIVITIES.filter(a=>a && a!=="Occupation");
 const advSelected = new Set(advActs);
 
 function renderAdvChecks(){
+  const aaChecks=$("aaChecks");
   aaChecks.innerHTML="";
   advActs.forEach(act=>{
     const row=document.createElement("label");
@@ -931,18 +808,7 @@ function renderAdvChecks(){
     });
     aaChecks.appendChild(row);
   });
-
-  $("aaAll").onclick = ()=>{
-    advSelected.clear(); advActs.forEach(a=>advSelected.add(a));
-    renderAdvChecks(); renderAdvStats();
-  };
-  $("aaNone").onclick = ()=>{
-    advSelected.clear();
-    renderAdvChecks(); renderAdvStats();
-  };
 }
-renderAdvChecks();
-aaPeriod.addEventListener("change", renderAdvStats);
 
 function computeAdv(period){
   const wks = weeksForPeriod(period);
@@ -965,6 +831,7 @@ function computeAdv(period){
 }
 
 function renderAdvBars(totalsSel){
+  const aaBars=$("aaBars");
   const entries = Object.entries(totalsSel).filter(([,v])=>v>0);
   if(entries.length===0){ aaBars.innerHTML = `<div class="hint">Aucune heure.</div>`; return; }
   entries.sort((a,b)=>b[1]-a[1]);
@@ -985,6 +852,7 @@ function renderAdvBars(totalsSel){
 }
 
 function renderAdvPie(totalsSel, total){
+  const aaPie=$("aaPie");
   const entries=Object.entries(totalsSel).filter(([,v])=>v>0);
   if(entries.length===0){ aaPie.innerHTML = `<div class="hint">Aucune heure.</div>`; return; }
 
@@ -1021,42 +889,204 @@ function renderAdvPie(totalsSel, total){
 }
 
 function renderAdvStats(){
-  const period=aaPeriod.value;
+  const period=$("aaPeriod").value;
   const {wksCount, totalsSel, totalSelected} = computeAdv(period);
-  aaWeeks.textContent = String(wksCount);
-  aaTotal.textContent = String(totalSelected);
-  aaAvg.textContent = (totalSelected / Math.max(1,wksCount)).toFixed(1);
+  $("aaWeeks").textContent = String(wksCount);
+  $("aaTotal").textContent = String(totalSelected);
+  $("aaAvg").textContent = (totalSelected / Math.max(1,wksCount)).toFixed(1);
   renderAdvBars(totalsSel);
   renderAdvPie(totalsSel, Math.max(1,totalSelected));
 }
 
 /* ======================================================
+   Render global + wiring
+====================================================== */
+function renderAll(){
+  renderWeek();
+  renderStats();
+  refreshPrefillWeekList();
+  renderPrefillGrid();
+  renderAdvChecks();
+  renderAdvStats();
+  showView("planning");
+}
+
+function wireEvents(){
+  // tabs
+  document.querySelectorAll(".tab").forEach(t=>{
+    t.addEventListener("click", ()=>showView(t.dataset.view));
+  });
+
+  // auth
+  $("btn-login").onclick = ()=>login($("auth-email").value, $("auth-password").value);
+  $("btn-signup").onclick = ()=>signup($("auth-email").value, $("auth-password").value);
+  $("btn-logout").onclick = logout;
+
+  // week nav
+  $("weekSelect").addEventListener("change", ()=>{
+    currentWeek = parseInt($("weekSelect").value,10);
+    renderWeek();
+  });
+  $("prevWeek").addEventListener("click", ()=>{
+    const i = SCHOOL_ORDER.indexOf(currentWeek);
+    if(i>0){ currentWeek = SCHOOL_ORDER[i-1]; renderWeek(); }
+  });
+  $("nextWeek").addEventListener("click", ()=>{
+    const i = SCHOOL_ORDER.indexOf(currentWeek);
+    if(i<SCHOOL_ORDER.length-1){ currentWeek = SCHOOL_ORDER[i+1]; renderWeek(); }
+  });
+
+  // modal
+  $("mCancel").addEventListener("click", closeModal);
+  $("overlay").addEventListener("click",(e)=>{ if(e.target===$("overlay")) closeModal(); });
+  $("mSave").addEventListener("click", async ()=>{
+    const sel = $("choices").querySelector(".choice.sel");
+    if(!sel || !modalCtx) return;
+    await setCell(modalCtx.week, modalCtx.slot, modalCtx.day, sel.textContent);
+    closeModal();
+    renderAll();
+    toast("Enregistré");
+  });
+
+  // export/import JSON
+  $("btnExportJson").addEventListener("click", ()=>{
+    download("planning_scolaire_donnees.json", JSON.stringify({overrides, objectifs}, null, 2), "application/json");
+  });
+
+  $("importJson").addEventListener("change", async (e)=>{
+    const file=e.target.files && e.target.files[0];
+    if(!file) return;
+    try{
+      const payload = JSON.parse(await file.text());
+      if(payload.overrides) overrides = payload.overrides;
+      if(payload.objectifs) objectifs = payload.objectifs;
+      await persistObjectifs();
+      await upsertOverridesBulk();
+      toast("Import JSON OK");
+      renderAll();
+    }catch{
+      toast("Import JSON impossible");
+    }finally{
+      e.target.value="";
+    }
+  });
+
+  // import CSV
+  $("importCSV").addEventListener("change", async (e)=>{
+    const files=e.target.files?Array.from(e.target.files):[];
+    for(const f of files){
+      await importWeeklyCSV(await f.text(), f.name);
+    }
+    renderAll();
+    e.target.value="";
+  });
+
+  // stats controls
+  $("workedRange").addEventListener("input", renderStats);
+  $("workedInput").addEventListener("input", renderStats);
+  $("periodSelect").addEventListener("change", renderStats);
+  $("btnExportCsv").addEventListener("click", exportStatsCSV);
+
+  $("warnPct").addEventListener("change", async ()=>{
+    objectifs.thresholds.warnPct = Math.max(50, Math.min(99, Number($("warnPct").value)||90));
+    $("warnPct").value = objectifs.thresholds.warnPct;
+    await persistObjectifs();
+    renderStats();
+  });
+  $("alertPct").addEventListener("change", async ()=>{
+    objectifs.thresholds.alertPct = Math.max(100, Math.min(300, Number($("alertPct").value)||110));
+    $("alertPct").value = objectifs.thresholds.alertPct;
+    await persistObjectifs();
+    renderStats();
+  });
+
+  // prefill controls
+  $("pfAll").addEventListener("click", ()=>setPrefillSelection(SCHOOL_ORDER));
+  $("pfNone").addEventListener("click", ()=>setPrefillSelection([]));
+  $("pfT1").addEventListener("click", ()=>setPrefillSelection(weeksForPeriod("t1")));
+  $("pfT2").addEventListener("click", ()=>setPrefillSelection(weeksForPeriod("t2")));
+  $("pfT3").addEventListener("click", ()=>setPrefillSelection(weeksForPeriod("t3")));
+  $("pfBonus").addEventListener("click", ()=>setPrefillSelection(weeksForPeriod("bonus")));
+
+  $("pfCancel").addEventListener("click", closePrefillPicker);
+  $("pfOverlay").addEventListener("click",(e)=>{ if(e.target===$("pfOverlay")) closePrefillPicker(); });
+  $("pfOk").addEventListener("click", async ()=>{
+    const sel=$("pfChoices").querySelector(".choice.sel");
+    if(!sel || !pfCtx) return;
+    TEMPLATE[pfCtx.slot] ||= {};
+    TEMPLATE[pfCtx.slot][pfCtx.day] = sel.textContent;
+    await persistTemplate();
+    closePrefillPicker();
+    renderPrefillGrid();
+    toast("Modèle enregistré");
+  });
+
+  $("pfCopyFromWeek").addEventListener("click", async ()=>{
+    const w=parseInt($("pfSourceWeek").value,10);
+    if(!Number.isFinite(w)) return;
+    const t=emptyTemplate();
+    for(const slot of SLOTS) for(const day of DAYS) t[slot][day]=getCell(w,slot,day);
+    TEMPLATE=t;
+    await persistTemplate();
+    renderPrefillGrid();
+    toast("Modèle copié");
+  });
+  $("pfClear").addEventListener("click", async ()=>{
+    TEMPLATE=emptyTemplate();
+    await persistTemplate();
+    renderPrefillGrid();
+    toast("Modèle vidé");
+  });
+  $("pfSave").addEventListener("click", async ()=>{
+    await persistTemplate();
+    toast("Modèle enregistré");
+  });
+  $("pfApply").addEventListener("click", async ()=>{
+    const weeks=Array.from(pfSelectedWeeks);
+    if(!weeks.length){ toast("Aucune semaine cochée"); return; }
+
+    const onlyEmpty = $("pfOnlyEmpty").checked;
+    const includeOcc = $("pfIncludeOccupation").checked;
+
+    let writes=0;
+    for(const w of weeks){
+      for(const slot of SLOTS){
+        for(const day of DAYS){
+          const val = (TEMPLATE[slot] && TEMPLATE[slot][day]) ? TEMPLATE[slot][day] : "Occupation";
+          if(!includeOcc && val==="Occupation") continue;
+          if(onlyEmpty && getCell(w,slot,day)!=="Occupation") continue;
+          await setCell(w,slot,day,val);
+          writes++;
+        }
+      }
+    }
+    toast(`Modèle appliqué (${writes} cellules)`);
+    renderAll();
+  });
+
+  // adv stats controls
+  $("aaPeriod").addEventListener("change", renderAdvStats);
+  $("aaAll").addEventListener("click", ()=>{
+    advSelected.clear(); advActs.forEach(a=>advSelected.add(a));
+    renderAdvChecks(); renderAdvStats();
+  });
+  $("aaNone").addEventListener("click", ()=>{
+    advSelected.clear();
+    renderAdvChecks(); renderAdvStats();
+  });
+}
+
+/* ======================================================
    INIT
 ====================================================== */
-async function init(){
+document.addEventListener("DOMContentLoaded", async ()=>{
+  wireEvents();
   buildWeekSelect();
   fillPrefillSourceWeeks();
+  renderAdvChecks();
 
   await updateUserBar();
   await hydrateAllFromSupabase();
 
-  renderWeek();
-  refreshPrefillWeekList();
-  renderPrefillGrid();
-  renderStats();
-  renderAdvStats();
-  showView("planning");
-}
-document.addEventListener("DOMContentLoaded", init);
-
-
-/* ======================================================
-   CONFIG (identique original)
-====================================================== */
-const DAYS = ["Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi","Dimanche"];
-const SLOTS = ["Préparation","M1","M2","M3","M4","Midi","S1","S2","S3","S4","Soir 1","Soir 2","Soir 3","Soir 4","Nuit 1","Nuit 2","Nuit 3","Nuit 4","Nuit 5"];
-const ACTIVITIES = ["Cours","CDC/suivi","Préparation","Instances","Parcours Avenir","Baroque","Gestion","Numérique","Coordination","Réunion","Amicale","Autres","Pépinières","Occupation"];
-
-const COLORS = {
-  "Cours":           "#6AAFE6",
-  "CDC/suivi":       "#5C9BD6",
+  renderAll();
+});

@@ -1,5 +1,6 @@
 // === DÉBUT BLOC AUTHENTIFICATION SUPABASE ===
 import { supabase } from './supabaseClient.js';
+let CURRENT_UID = null;
 
 // Authentification
 async function login(email, password) {
@@ -22,10 +23,12 @@ async function logout() {
 function updateUserBar() {
   supabase.auth.getUser().then(({ data }) => {
     if (data?.user) {
+      CURRENT_UID = data.user.id;
       document.getElementById("user-bar").style.display = "flex";
       document.getElementById("auth-form").style.display = "none";
       document.getElementById("user-email").textContent = data.user.email;
     } else {
+      CURRENT_UID = null;
       document.getElementById("user-bar").style.display = "none";
       document.getElementById("auth-form").style.display = "flex";
     }
@@ -63,17 +66,26 @@ function setSyncStatus(connected) {
 
 // === DÉBUT BLOC MIGRATION PLANNING SUPABASE ===
 async function fetchPlanning() {
+  if (!CURRENT_UID) return [];
   const { data, error } = await supabase
     .from('overrides')
-    .select('*');
+    .select('*')
+    .eq('user_id', CURRENT_UID);
   setSyncStatus(!error);
   return data || [];
 }
 
 async function savePlanning(week, slot, day, activity) {
+  if (!CURRENT_UID) return;
   const { error } = await supabase
     .from('overrides')
-    .upsert([{ week, slot, day, activity }]);
+    .upsert([{
+      user_id: CURRENT_UID,
+      week,
+      slot,
+      day,
+      activity
+    }]);
   setSyncStatus(!error);
 }
 // === FIN BLOC MIGRATION PLANNING SUPABASE ===
@@ -81,17 +93,24 @@ async function savePlanning(week, slot, day, activity) {
 
 // === DÉBUT BLOC MIGRATION OBJECTIFS SUPABASE ===
 async function fetchObjectifs() {
+  if (!CURRENT_UID) return {};
   const { data, error } = await supabase
     .from('objectifs')
-    .select('*');
+    .select('data')
+    .eq('user_id', CURRENT_UID)
+    .limit(1);
   setSyncStatus(!error);
   return (data && data.length > 0) ? (data[0].data || {}) : {};
 }
 
 async function saveObjectifs(obj) {
+  if (!CURRENT_UID) return;
   const { error } = await supabase
     .from('objectifs')
-    .upsert([{ data: obj }]);
+    .upsert([{
+      user_id: CURRENT_UID,
+      data: obj
+    }]);
   setSyncStatus(!error);
 }
 // === FIN BLOC MIGRATION OBJECTIFS SUPABASE ===
@@ -99,9 +118,12 @@ async function saveObjectifs(obj) {
 
 // === DÉBUT BLOC MIGRATION TEMPLATE SUPABASE ===
 async function fetchTemplate() {
+  if (!CURRENT_UID) return {};
   const { data, error } = await supabase
     .from('template')
-    .select('*');
+    .select('data')
+    .eq('user_id', CURRENT_UID)
+    .limit(1);
   setSyncStatus(!error);
 
   if (error) {
@@ -109,17 +131,17 @@ async function fetchTemplate() {
     return null;
   }
 
-  if (data && data.length > 0) {
-    return data[0].data || {};
-  }
-
-  return {};
+  return (data && data.length > 0) ? (data[0].data || {}) : {};
 }
 
 async function saveTemplate(obj) {
+  if (!CURRENT_UID) return;
   const { error } = await supabase
     .from('template')
-    .upsert([{ data: obj }]);
+    .upsert([{
+      user_id: CURRENT_UID,
+      data: obj
+    }]);
   setSyncStatus(!error);
 }
 // === FIN BLOC MIGRATION TEMPLATE SUPABASE ===

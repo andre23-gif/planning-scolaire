@@ -44,3 +44,9 @@ document.getElementById("btn-logout").onclick = logout;
 
 updateUserBar();
 // === FIN BLOC AUTHENTIFICATION SUPABASE ===
+// Voyant synchro
+function setSyncStatus(connected) {
+  const dot = document.getElementById("sync-dot");
+  dot.style.display = "inline-block";
+  dot.style.background = connected ? "#2CA768" : "#7B2D2D";
+}

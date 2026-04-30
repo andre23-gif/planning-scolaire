@@ -44,9 +44,79 @@ document.getElementById("btn-logout").onclick = logout;
 
 updateUserBar();
 // === FIN BLOC AUTHENTIFICATION SUPABASE ===
-// Voyant synchro
+// === Voyant synchro ===
 function setSyncStatus(connected) {
   const dot = document.getElementById("sync-dot");
   dot.style.display = "inline-block";
   dot.style.background = connected ? "#2CA768" : "#7B2D2D";
+}
+//=== migration planning ===
+async function fetchPlanning() {
+  const { data, error } = await supabase
+    .from('overrides')
+    .select('*');
+  setSyncStatus(!error);
+  // ...utilise data pour afficher le planning
+}
+async function savePlanning(week, slot, day, activity) {
+  const { error } = await supabase
+    .from('overrides')
+    .upsert([{ week, slot, day, activity }]);
+  setSyncStatus(!error);
+}
+// === migration objectifs ===
+async function fetchObjectifs() {
+  const { data, error } = await supabase
+    .from('objectifs')
+    .select('*');
+  setSyncStatus(!error);
+  // ...utilise data pour afficher les objectifs
+}
+async function saveObjectifs(obj) {
+  const { error } = await supabase
+    .from('objectifs')
+    .upsert([{ data: obj }]);
+  setSyncStatus(!error);
+}
+// === migration fetchtemplate ===
+async function fetchTemplate() {
+  const { data, error } = await supabase
+    .from('template')
+    .select('*');
+  setSyncStatus(!error);
+  if (error) {
+    // Gestion d'erreur
+    console.error("Erreur lors du fetch du template :", error.message);
+    return null;
+  }
+  if (data && data.length > 0) {
+    // Retourne le modèle récupéré
+    return data[0].data;
+  } else {
+    // Aucun template trouvé, retourne un modèle vide
+    return {};
+  }
+}
+
+  // ...utilise data pour afficher le modèle
+}
+async function saveTemplate(obj) {
+  const { error } = await supabase
+    .from('template')
+    .upsert([{ data: obj }]);
+  setSyncStatus(!error);
+}
+// === migration templates ===
+async function fetchTemplate() {
+  const { data, error } = await supabase
+    .from('template')
+    .select('*');
+  setSyncStatus(!error);
+  // ...utilise data pour afficher le modèle
+}
+async function saveTemplate(obj) {
+  const { error } = await supabase
+    .from('template')
+    .upsert([{ data: obj }]);
+  setSyncStatus(!error);
 }

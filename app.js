@@ -68,7 +68,55 @@ async function savePlanning(week, slot, day, activity) {
   setSyncStatus(!error);
 }
 // === FIN BLOC MIGRATION PLANNING SUPABASE ===
+// === DÉBUT BLOC UI OBJECTIFS SUPABASE ===
+async function afficherObjectifs() {
+  const objectifs = await fetchObjectifs();
+  const container = document.getElementById("objectifs");
+  container.innerHTML = "";
+  for (const [key, value] of Object.entries(objectifs)) {
+    const div = document.createElement("div");
+    div.textContent = `${key} : ${value}`;
+    container.appendChild(div);
+  }
+}
+document.addEventListener("DOMContentLoaded", afficherObjectifs);
+// === FIN BLOC UI OBJECTIFS SUPABASE ===
+// === DÉBUT BLOC UI TEMPLATE SUPABASE ===
+async function afficherTemplate() {
+  const template = await fetchTemplate();
+  const container = document.getElementById("template");
+  container.innerHTML = "";
+  for (const [key, value] of Object.entries(template)) {
+    const div = document.createElement("div");
+    div.textContent = `${key} : ${value}`;
+    container.appendChild(div);
+  }
+}
+document.addEventListener("DOMContentLoaded", afficherTemplate);
+// === FIN BLOC UI TEMPLATE SUPABASE ===
+// === DÉBUT BLOC UI STATISTIQUES ET IMPORT/EXPORT SUPABASE ===
+async function afficherStats() {
+  const planning = await fetchPlanning();
+  const objectifs = await fetchObjectifs();
+  const stats = calculStats(planning, objectifs);
+  const container = document.getElementById("stats");
+  container.innerHTML = `Total : ${stats.total} | Objectif : ${stats.objectif} | Progression : ${stats.progression}%`;
+}
+document.addEventListener("DOMContentLoaded", afficherStats);
 
+document.getElementById("export-btn").onclick = () => {
+  fetchPlanning().then(planning => exportJSON(planning, "planning.json"));
+};
+document.getElementById("import-btn").onclick = () => {
+  document.getElementById("import-file").click();
+};
+document.getElementById("import-file").onchange = (e) => {
+  importJSON(e.target.files[0], data => {
+    // Traitement des données importées (exemple : affichage)
+    document.getElementById("planning").innerHTML = JSON.stringify(data, null, 2);
+  });
+};
+// === FIN BLOC UI STATISTIQUES ET IMPORT/EXPORT SUPABASE ===
 // === DÉBUT BLOC MIGRATION OBJECTIFS SUPABASE ===
 async function fetchObjectifs() {
   const { data, error } = await supabase

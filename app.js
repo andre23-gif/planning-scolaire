@@ -44,13 +44,16 @@ document.getElementById("btn-logout").onclick = logout;
 
 updateUserBar();
 // === FIN BLOC AUTHENTIFICATION SUPABASE ===
-// === Voyant synchro ===
+
+// === DÉBUT BLOC VOYANT DE SYNCHRO SUPABASE ===
 function setSyncStatus(connected) {
   const dot = document.getElementById("sync-dot");
   dot.style.display = "inline-block";
   dot.style.background = connected ? "#2CA768" : "#7B2D2D";
 }
-//=== migration planning ===
+// === FIN BLOC VOYANT DE SYNCHRO SUPABASE ===
+
+// === DÉBUT BLOC MIGRATION PLANNING SUPABASE ===
 async function fetchPlanning() {
   const { data, error } = await supabase
     .from('overrides')
@@ -64,7 +67,9 @@ async function savePlanning(week, slot, day, activity) {
     .upsert([{ week, slot, day, activity }]);
   setSyncStatus(!error);
 }
-// === migration objectifs ===
+// === FIN BLOC MIGRATION PLANNING SUPABASE ===
+
+// === DÉBUT BLOC MIGRATION OBJECTIFS SUPABASE ===
 async function fetchObjectifs() {
   const { data, error } = await supabase
     .from('objectifs')
@@ -78,45 +83,29 @@ async function saveObjectifs(obj) {
     .upsert([{ data: obj }]);
   setSyncStatus(!error);
 }
-// === migration fetchtemplate ===
+// === FIN BLOC MIGRATION OBJECTIFS SUPABASE ===
+
+// === DÉBUT BLOC MIGRATION TEMPLATE SUPABASE ===
 async function fetchTemplate() {
   const { data, error } = await supabase
     .from('template')
     .select('*');
   setSyncStatus(!error);
   if (error) {
-    // Gestion d'erreur
     console.error("Erreur lors du fetch du template :", error.message);
     return null;
   }
   if (data && data.length > 0) {
-    // Retourne le modèle récupéré
     return data[0].data;
   } else {
-    // Aucun template trouvé, retourne un modèle vide
     return {};
   }
 }
-
-  // ...utilise data pour afficher le modèle
-}
 async function saveTemplate(obj) {
   const { error } = await supabase
     .from('template')
     .upsert([{ data: obj }]);
   setSyncStatus(!error);
 }
-// === migration templates ===
-async function fetchTemplate() {
-  const { data, error } = await supabase
-    .from('template')
-    .select('*');
-  setSyncStatus(!error);
-  // ...utilise data pour afficher le modèle
-}
-async function saveTemplate(obj) {
-  const { error } = await supabase
-    .from('template')
-    .upsert([{ data: obj }]);
-  setSyncStatus(!error);
-}
+// === FIN BLOC MIGRATION TEMPLATE SUPABASE ===
+``

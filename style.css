@@ -1,35 +1,21 @@
-/* ==============================
-   Planning scolaire – Supabase
-   UI V3 (anti-casse)
-   ============================== */
-
 :root{
   --bg-royal:#24308f;
   --bg-royal2:#3a4bd6;
   --bg-gold:#ffe08a;
   --bg-ivory:#fff7dd;
 
-  --surface:#fcfcff;
-  --surface2:#f1f4ff;
-  --border:#c9cff7;
-
   --text:#111827;
   --dim:#4b5563;
 
   --gold:#f5c84b;
-  --gold2:#d4a62a;
 
-  --ok:#16a34a;
-  --warn:#d4a62a;
-  --danger:#dc2626;
+  --shadow: 0 14px 34px rgba(17,24,39,.16);
+  --shadow2: 0 8px 18px rgba(17,24,39,.10);
 
   --r-card:24px;
   --r-btn:18px;
   --r-input:16px;
   --r-cell:14px;
-
-  --shadow: 0 14px 34px rgba(17,24,39,.16);
-  --shadow2: 0 8px 18px rgba(17,24,39,.10);
 
   --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
   --font-type: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
@@ -100,6 +86,7 @@ main{max-width:1200px; margin:0 auto; padding:16px;}
 }
 
 .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
+
 .pill{
   background: rgba(241,244,255,.92);
   border:1px solid rgba(36,48,143,.14);
@@ -143,15 +130,8 @@ select, input{
   font-family:var(--font-type);
 }
 
-.auth input{
-  width:180px;
-}
-.auth{
-  display:flex;
-  gap:8px;
-  align-items:center;
-  flex-wrap:wrap;
-}
+.auth{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+.auth input{width:180px}
 
 /* Sync dot */
 #sync-dot{

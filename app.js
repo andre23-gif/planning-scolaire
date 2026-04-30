@@ -293,38 +293,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 // === FIN BLOC UI MINIMAL ===
 /* ====== UI reprise de l'app "Planning scolaire – Heures" ====== */
 
-:root{
-  --bg-royal:#24308f;
-  --bg-royal2:#3a4bd6;
-  --bg-gold:#ffe08a;
-  --bg-ivory:#fff7dd;
-
-  --surface:#fcfcff;
-  --surface2:#f1f4ff;
-  --border:#c9cff7;
-
-  --text:#111827;
-  --dim:#4b5563;
-
-  --gold:#f5c84b;
-  --gold2:#d4a62a;
-
-  --ok:#16a34a;
-  --warn:#d4a62a;
-  --danger:#dc2626;
-
-  --r-card:24px;
-  --r-btn:18px;
-  --r-input:16px;
-  --r-cell:14px;
-
-  --shadow: 0 14px 34px rgba(17,24,39,.16);
-  --shadow2: 0 8px 18px rgba(17,24,39,.10);
-
-  --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
-  --font-type: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
-}
-
 *{box-sizing:border-box}
 
 body{

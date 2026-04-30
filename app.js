@@ -59,7 +59,7 @@ async function fetchPlanning() {
     .from('overrides')
     .select('*');
   setSyncStatus(!error);
-  // ...utilise data pour afficher le planning
+  return data || [];
 }
 async function savePlanning(week, slot, day, activity) {
   const { error } = await supabase
@@ -75,7 +75,7 @@ async function fetchObjectifs() {
     .from('objectifs')
     .select('*');
   setSyncStatus(!error);
-  // ...utilise data pour afficher les objectifs
+  return data && data.length > 0 ? data[0].data : {};
 }
 async function saveObjectifs(obj) {
   const { error } = await supabase
@@ -106,6 +106,3 @@ async function saveTemplate(obj) {
     .from('template')
     .upsert([{ data: obj }]);
   setSyncStatus(!error);
-}
-// === FIN BLOC MIGRATION TEMPLATE SUPABASE ===
-``

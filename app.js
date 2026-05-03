@@ -1086,10 +1086,30 @@ async function startApp() {
   renderAdvChecks();
 
   await updateUserBar();
-  await hydrateAllFromSupabase();
+  if (CURRENT_UID) {
+    await hydrateAllFromSupabase();
+  }
 
   renderAll();
 }
+
+// === PATCH: REHYDRATE AFTER AUTH RESTORE (ne pas dupliquer) ===
+let __rehydrating = false;
+
+supabase.auth.onAuthStateChange(async (_event, session) => {
+  if (!session?.user) return;
+  if (__rehydrating) return;
+  __rehydrating = true;
+
+  try {
+    CURRENT_UID = session.user.id;
+    await hydrateAllFromSupabase();
+    renderAll();
+  } finally {
+    __rehydrating = false;
+  }
+});
+// === FIN PATCH ===
 
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", startApp);

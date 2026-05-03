@@ -97,7 +97,29 @@ function emptyTemplate(){
 }
 
 let CURRENT_UID = null;
+// === PATCH: AUTH QUEUE + APPLY SESSION (ne pas dupliquer) ===
+let __authQueue = Promise.resolve();
 
+function runAuthTask(fn) {
+  __authQueue = __authQueue.then(fn).catch((e) => console.warn("Auth task failed:", e));
+  return __authQueue;
+}
+
+function applySessionToUI(session) {
+  const user = session?.user || null;
+  if (user) {
+    CURRENT_UID = user.id;
+    $("user-bar").style.display = "flex";
+    $("auth-form").style.display = "none";
+    $("user-email").textContent = user.email || "";
+  } else {
+    CURRENT_UID = null;
+    $("user-bar").style.display = "none";
+    $("auth-form").style.display = "flex";
+    $("user-email").textContent = "";
+  }
+}
+// === FIN PATCH ===
 // overrides stocké comme l’original : clé "S12|M1|Lundi" -> "Cours"
 let overrides = {};
 let objectifs = defaultObjectifs();
@@ -108,19 +130,19 @@ let TEMPLATE = emptyTemplate();
 ====================================================== */
 async function updateUserBar(){
   const { data } = await supabase.auth.getSession();
-  applySessionToUI(data?.session || null);
-}
+  const user = data?.session?.user || null;
 
-async function login(email, password){
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) { alert("Erreur connexion : " + error.message); return; }
-await runAuthTask(async () => {
-    await updateUserBar(); // maintenant basé sur getSession()
-    if (CURRENT_UID) {
-      await hydrateAllFromSupabase();
-    }
-    renderAll();
-  });
+  if (user) {
+    CURRENT_UID = user.id;
+    $("user-bar").style.display = "flex";
+    $("auth-form").style.display = "none";
+    $("user-email").textContent = user.email || "";
+  } else {
+    CURRENT_UID = null;
+    $("user-bar").style.display = "none";
+    $("auth-form").style.display = "flex";
+    $("user-email").textContent = "";
+  }
 }
 
 async function signup(email, password){

@@ -107,26 +107,20 @@ let TEMPLATE = emptyTemplate();
    SUPABASE AUTH (boutons + affichage)
 ====================================================== */
 async function updateUserBar(){
-  const { data } = await supabase.auth.getUser();
-  if (data?.user) {
-    CURRENT_UID = data.user.id;
-    $("user-bar").style.display = "flex";
-    $("auth-form").style.display = "none";
-    $("user-email").textContent = data.user.email;
-  } else {
-    CURRENT_UID = null;
-    $("user-bar").style.display = "none";
-    $("auth-form").style.display = "flex";
-    $("user-email").textContent = "";
-  }
+  const { data } = await supabase.auth.getSession();
+  applySessionToUI(data?.session || null);
 }
 
 async function login(email, password){
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) { alert("Erreur connexion : " + error.message); return; }
-  await updateUserBar();
-  await hydrateAllFromSupabase();
-  renderAll();
+await runAuthTask(async () => {
+    await updateUserBar(); // maintenant basé sur getSession()
+    if (CURRENT_UID) {
+      await hydrateAllFromSupabase();
+    }
+    renderAll();
+  });
 }
 
 async function signup(email, password){
@@ -1076,6 +1070,36 @@ function wireEvents(){
   });
 }
 
+// === PATCH: AUTH SERIALIZER (ne pas dupliquer) ===
+let __authQueue = Promise.resolve();
+
+function runAuthTask(task) {
+  __authQueue = __authQueue
+    .then(task)
+    .catch((e) => {
+      // On évite de casser l’app si une tâche échoue
+      console.warn("Auth task failed:", e);
+    });
+  return __authQueue;
+}
+
+function applySessionToUI(session) {
+  const user = session?.user || null;
+  if (user) {
+    CURRENT_UID = user.id;
+    $("user-bar").style.display = "flex";
+    $("auth-form").style.display = "none";
+    $("user-email").textContent = user.email || "";
+  } else {
+    CURRENT_UID = null;
+    $("user-bar").style.display = "none";
+    $("auth-form").style.display = "flex";
+    $("user-email").textContent = "";
+  }
+}
+// === FIN PATCH ===
+
+
 /* ======================================================
    INIT
 ====================================================== */
@@ -1096,19 +1120,20 @@ async function startApp() {
 // === PATCH: REHYDRATE AFTER AUTH RESTORE (ne pas dupliquer) ===
 let __rehydrating = false;
 
-supabase.auth.onAuthStateChange(async (_event, session) => {
-  if (!session?.user) return;
-  if (__rehydrating) return;
-  __rehydrating = true;
-
-  try {
-    CURRENT_UID = session.user.id;
-    await hydrateAllFromSupabase();
+supabase.auth.onAuthStateChange((_event, session) => {
+  runAuthTask(async () => {
+    applySessionToUI(session || null);
+    if (CURRENT_UID) {
+      await hydrateAllFromSupabase();
+    } else {
+      overrides = {};
+      objectifs = defaultObjectifs();
+      TEMPLATE = emptyTemplate();
+    }
     renderAll();
-  } finally {
-    __rehydrating = false;
-  }
+  });
 });
+
 // === FIN PATCH ===
 
 if (document.readyState === "loading") {

@@ -1092,35 +1092,6 @@ function wireEvents(){
   });
 }
 
-// === PATCH: AUTH SERIALIZER (ne pas dupliquer) ===
-let __authQueue = Promise.resolve();
-
-function runAuthTask(task) {
-  __authQueue = __authQueue
-    .then(task)
-    .catch((e) => {
-      // On évite de casser l’app si une tâche échoue
-      console.warn("Auth task failed:", e);
-    });
-  return __authQueue;
-}
-
-function applySessionToUI(session) {
-  const user = session?.user || null;
-  if (user) {
-    CURRENT_UID = user.id;
-    $("user-bar").style.display = "flex";
-    $("auth-form").style.display = "none";
-    $("user-email").textContent = user.email || "";
-  } else {
-    CURRENT_UID = null;
-    $("user-bar").style.display = "none";
-    $("auth-form").style.display = "flex";
-    $("user-email").textContent = "";
-  }
-}
-// === FIN PATCH ===
-
 
 /* ======================================================
    INIT

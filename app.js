@@ -185,10 +185,41 @@ function parseKey(key){
 
 async function hydrateOverrides(){
   if(!CURRENT_UID){ overrides = {}; return; }
-  const { data, error } = await supabase.from("overrides").select("*").eq("user_id", CURRENT_UID);
-  setSyncStatus(!error);
+
+  // === PATCH: PAGINATION OVERRIDES (ne pas dupliquer) ===
+  const pageSize = 1000;
+  let from = 0;
+  let all = [];
+
+  while (true) {
+    const { data, error } = await supabase
+      .from("overrides")
+      .select("week,slot,day,activity")
+      .eq("user_id", CURRENT_UID)
+      // Important : range respecte l'ordre ; sans ordre, le comportement peut être inattendu
+      .order("week", { ascending: true })
+      .order("slot", { ascending: true })
+      .order("day",  { ascending: true })
+      .range(from, from + pageSize - 1); // 0-based, inclusif [1](https://supabase.com/docs/reference/javascript/range)
+
+    if (error) {
+      setSyncStatus(false);
+      console.warn("hydrateOverrides error:", error);
+      break;
+    }
+
+    all = all.concat(data || []);
+    if (!data || data.length < pageSize) break; // dernière page
+    from += pageSize;
+  }
+
+  setSyncStatus(true);
+
   overrides = {};
-  (data || []).forEach(r => { overrides[k(r.week, r.slot, r.day)] = r.activity; });
+  all.forEach(r => {
+    overrides[`S${r.week}|${r.slot}|${r.day}`] = r.activity;
+  });
+  // === FIN PATCH ===
 }
 
 async function persistOverride(week, slot, day, activity){

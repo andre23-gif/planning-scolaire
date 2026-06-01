@@ -967,6 +967,25 @@ function wireEvents(){
   // auth
   $("btn-login").onclick = ()=>login($("auth-email").value, $("auth-password").value);
   $("btn-signup").onclick = ()=>signup($("auth-email").value, $("auth-password").value);
+   $("btn-forgot").onclick = async () => {
+    const email = $("auth-email").value.trim();
+
+    if (!email) {
+      alert("Saisis d’abord ton email.");
+      return;
+    }
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: "https://andre23-gif.github.io/planning-scolaire/reset-password.html"
+    });
+
+    if (error) {
+      alert("Erreur envoi email : " + error.message);
+      return;
+    }
+
+    alert("Un lien de réinitialisation a été envoyé par email.");
+  };
   $("btn-logout").onclick = logout;
 
   // week nav

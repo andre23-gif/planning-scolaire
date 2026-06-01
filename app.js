@@ -145,6 +145,23 @@ async function updateUserBar(){
   }
 }
 
+async function login(email, password){
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+
+  if (error) {
+    alert("Erreur connexion : " + error.message);
+    return;
+  }
+
+  await runAuthTask(async () => {
+    await updateUserBar();
+    if (CURRENT_UID) {
+      await hydrateAllFromSupabase();
+    }
+    renderAll();
+  });
+}
+
 async function signup(email, password){
   const { error } = await supabase.auth.signUp({ email, password });
   if (error) {

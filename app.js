@@ -5,7 +5,7 @@ import { supabase } from "./supabaseClient.js";
 ====================================================== */
 const DAYS = ["Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi","Dimanche"];
 const SLOTS = ["Préparation","M1","M2","M3","M4","Midi","S1","S2","S3","S4","Soir 1","Soir 2","Soir 3","Soir 4","Nuit 1","Nuit 2","Nuit 3","Nuit 4","Nuit 5"];
-const ACTIVITIES = ["Cours","CDC/suivi","Préparation","Instances","Parcours Avenir","Baroque","Gestion","Numérique","Coordination","Réunion","Amicale","Autres","Pépinières","Occupation"];
+const ACTIVITIES = ["Cours","CDC/suivi","Préparation","Instances","Parcours Avenir","Baroque","Gestion","Numérique","Coordination","Réunion","Amicale","Autres","Pépinières","Correction","Atelier","Accompagnement","Sortie","Occupation"];
 
 const COLORS = {
   "Cours":           "#6AAFE6",
@@ -21,6 +21,10 @@ const COLORS = {
   "Amicale":         "#CFE2F3",
   "Autres":          "#DDE2EA",
   "Pépinières":      "#9FD9AE",
+  "Correction":      "#E3A6B0",
+  "Atelier":         "#C9A6E0",
+  "Accompagnement":  "#A6C8E0",
+  "Sortie":          "#F2C28B",
   "Occupation":      "#F4F6FA"
 };
 
@@ -1065,8 +1069,14 @@ function wireEvents(){
   });
 
   // stats controls
-  $("workedRange").addEventListener("input", renderStats);
-  $("workedInput").addEventListener("input", renderStats);
+  $("workedRange").addEventListener("input", ()=>{
+    $("workedInput").value = $("workedRange").value;
+    renderStats();
+  });
+  $("workedInput").addEventListener("input", ()=>{
+    $("workedRange").value = $("workedInput").value;
+    renderStats();
+  });
   $("periodSelect").addEventListener("change", renderStats);
   $("btnExportCsv").addEventListener("click", exportStatsCSV);
 
